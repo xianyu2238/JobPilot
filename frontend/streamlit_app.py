@@ -12,7 +12,7 @@ import streamlit as st
 
 from frontend.api_client import APIError, request
 from frontend.resume_editor import render_editor
-from frontend.resume_export import render_export
+from frontend.resume_generation import render_generation
 
 st.set_page_config(page_title="JobPilot · 求职助手", page_icon="🧭", layout="wide")
 local_config = dotenv_values(Path(__file__).resolve().parents[1] / ".env")
@@ -58,7 +58,7 @@ def invalidate_resume():
     state.pop("confirm_checkbox", None)
     state.pop("editor_signature", None)
     state.pop("editor_draft", None)
-    state.pop("resume_export", None)
+    state.pop("generated_resume", None)
 
 
 with st.sidebar:
@@ -136,7 +136,6 @@ with left:
             except APIError as exc:
                 state.confirmed, state.result = False, None
                 show_error(exc)
-        render_export(BASE, state.resume, state.editor_dirty, show_error)
     else:
         with st.container(border=True):
             st.caption("上传并解析后，个人信息与经历会自动填入这里，可逐条修改。")
@@ -158,6 +157,8 @@ with right:
                     state.result = request(BASE, "POST", "/api/jobs/match", json={"resume_id": state.resume["resume_id"], "jd_text": jd, "resume_revision": state.resume["revision"]})
             except APIError as exc:
                 show_error(exc)
+    render_generation(BASE, state.resume, state.editor_dirty, jd, show_error)
+    st.divider()
     st.subheader("修改建议与学习计划")
     if state.result:
         result = state.result

@@ -41,13 +41,14 @@ class Settings(BaseSettings):
     store_capacity: int = Field(default=20, ge=1, le=100)
     store_ttl_seconds: int = Field(default=3600, ge=1, le=86400)
     api_base_url: str = "http://127.0.0.1:8000"
-    latex_engine: Literal["auto", "tectonic", "xelatex"] = "auto"
-    latex_binary: str = ""
-    latex_timeout_seconds: int = Field(default=120, ge=10, le=600)
-    latex_allow_downloads: bool = False
-    latex_proxy: str = ""
+    resume_generation_base_url: str = "https://aihubmix.com/v1"
+    resume_generation_model: str = "deepseek-v4.1-flash-1017"
+    resume_generation_api_key: SecretStr = Field(default=SecretStr(""), validation_alias=AliasChoices("JOBPILOT_RESUME_GENERATION_API_KEY", "AIHUBMIX_API_KEY"))
+    resume_generation_timeout_seconds: float = Field(default=180, ge=1, le=300)
+    resume_generation_max_tokens: int = Field(default=24000, ge=2000, le=32000)
+    resume_generation_enable_thinking: bool = False
 
-    @field_validator("llm_base_url", "llm_proxy", "api_base_url", "latex_proxy")
+    @field_validator("llm_base_url", "llm_proxy", "api_base_url", "resume_generation_base_url")
     @classmethod
     def validate_url(cls, value: str) -> str:
         from urllib.parse import urlsplit

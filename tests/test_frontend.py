@@ -5,6 +5,51 @@ from pathlib import Path
 from streamlit.testing.v1 import AppTest
 
 
+def test_generate_html_link_uses_saved_form_and_invalidates(monkeypatch, client, application):
+    import json
+    import html
+    import httpx
+    import frontend.api_client as api
+    from conftest import pdf_bytes
+
+    application.state.settings.resume_generation_api_key = "fake-generation-key"
+    calls = []
+    def completion(request):
+        body = json.loads(request.content)
+        payload = json.loads(body["messages"][1]["content"])
+        calls.append(payload)
+        name = html.escape(payload["resume"]["personal_info"]["name"])
+        content = '<!doctype html><html><head><style>body{color:#123}</style></head><body><h1>'+name+'</h1><p>项目经历：Python FastAPI</p></body></html>'
+        return httpx.Response(200,json={"choices":[{"message":{"content":content}}]})
+    application.state.resume_generator.transport = httpx.MockTransport(completion)
+    def through_backend(base, method, path, **kwargs):
+        response=client.request(method,path,**kwargs)
+        if response.is_error:
+            body=response.json()
+            raise api.APIError(body["message"],body["code"],body["request_id"])
+        return None if response.status_code==204 else response.json()
+    monkeypatch.setattr(api,"request",through_backend)
+    # The generation module imports request directly; use the same backend adapter.
+    import frontend.resume_generation as generation
+    monkeypatch.setattr(generation,"request",through_backend)
+    page=AppTest.from_file(Path(__file__).resolve().parents[1]/"frontend"/"streamlit_app.py").run()
+    assert next(b for b in page.button if b.label=="使用 DeepSeek 制作简历").disabled
+    page.file_uploader[0].upload("resume.pdf",pdf_bytes(),"application/pdf").run()
+    next(b for b in page.button if b.label=="解析简历").click().run()
+    page.text_input[0].input("HTML Edited Candidate").run()
+    assert next(b for b in page.button if b.label=="使用 DeepSeek 制作简历").disabled
+    next(b for b in page.button if b.label=="保存修改").click().run()
+    next(b for b in page.button if b.label=="使用 DeepSeek 制作简历").click().run()
+    assert not page.exception
+    assert calls[0]["resume"]["personal_info"]["name"]=="HTML Edited Candidate"
+    result=page.session_state["generated_resume"]
+    assert any(link.proto.url.endswith(result["preview_path"]) for link in page.get("link_button"))
+    assert client.get(result["preview_path"]).status_code==200
+    page.text_input[0].input("Another edit").run()
+    assert "generated_resume" not in page.session_state
+    assert not page.get("link_button")
+
+
 def test_initial_page_has_no_extraction_button_and_upload_failure(monkeypatch):
     from frontend.api_client import APIError
     from conftest import pdf_bytes
@@ -42,7 +87,7 @@ def test_upload_confirm_analyze_and_invalidate(monkeypatch, client):
             raise api.APIError(body["message"], body["code"], body["request_id"])
         if response.status_code == 204:
             return None
-        return response.content if response.headers.get("content-type", "").startswith(("image/", "application/pdf", "application/zip")) else response.json()
+        return response.content if response.headers.get("content-type", "").startswith("image/") else response.json()
     monkeypatch.setattr(api, "request", through_backend)
     page = AppTest.from_file(Path(__file__).resolve().parents[1] / "frontend" / "streamlit_app.py").run()
     page.file_uploader[0].upload("resume.pdf", pdf_bytes(), "application/pdf").run()
@@ -76,7 +121,7 @@ def test_edit_save_reconfirm_and_analyze_uses_saved_version(monkeypatch, client)
             raise api.APIError(body["message"], body["code"], body["request_id"])
         if response.status_code == 204:
             return None
-        return response.content if response.headers.get("content-type", "").startswith(("image/", "application/pdf", "application/zip")) else response.json()
+        return response.content if response.headers.get("content-type", "").startswith("image/") else response.json()
     monkeypatch.setattr(api, "request", through_backend)
     page = AppTest.from_file(Path(__file__).resolve().parents[1] / "frontend" / "streamlit_app.py").run()
     page.file_uploader[0].upload("resume.pdf", pdf_bytes(), "application/pdf").run()
@@ -97,21 +142,6 @@ def test_edit_save_reconfirm_and_analyze_uses_saved_version(monkeypatch, client)
     assert saved["revision"] == before + 1
     assert saved["parsed_data"]["personal_info"]["name"] == "Edited candidate"
     assert not saved["confirmed"]
-    next(button for button in page.button if button.label == "导出 LaTeX 源文件").click().run()
-    assert not page.exception
-    from io import BytesIO
-    import zipfile
-    with zipfile.ZipFile(BytesIO(page.session_state["resume_export"]["source"])) as archive:
-        assert b"Edited candidate" in archive.read("resume.tex")
-    from app.services.latex_service import LatexExporter
-    monkeypatch.setattr(LatexExporter, "build", lambda self, sources: (pdf_bytes(), 1, []))
-    next(button for button in page.button if button.label == "导出 PDF").click().run()
-    assert not page.exception
-    assert page.session_state["resume_export"]["pdf"].startswith(b"%PDF")
-    page.text_input[0].input("Changed again").run()
-    assert "resume_export" not in page.session_state
-    assert next(button for button in page.button if button.label == "导出 PDF").disabled
-    next(button for button in page.button if button.label == "保存修改").click().run()
     page.checkbox(key="confirm_checkbox").check().run()
     page.text_area(key=f"jd_{page.session_state['epoch']}").input(JD).run()
     next(button for button in page.button if button.label == "开始分析").click().run()
@@ -130,7 +160,7 @@ def test_multiline_entries_survive_add_delete_and_save(monkeypatch, client):
             raise api.APIError(body["message"], body["code"], body["request_id"])
         if response.status_code == 204:
             return None
-        return response.content if response.headers.get("content-type", "").startswith(("image/", "application/pdf", "application/zip")) else response.json()
+        return response.content if response.headers.get("content-type", "").startswith("image/") else response.json()
     monkeypatch.setattr(api, "request", through_backend)
     page = AppTest.from_file(Path(__file__).resolve().parents[1] / "frontend" / "streamlit_app.py").run()
     jd_key = f"jd_{page.session_state['epoch']}"

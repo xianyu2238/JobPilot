@@ -1,9 +1,0 @@
-<% if projects %>
-\cvsection[0.65]{项目经历}
-<% for item in projects %>
-\cvheading{<< item.title >>}{}
-<% for line in item.lines %>
-\cvitem{<< line >>}
-<% endfor %>
-<% endfor %>
-<% endif %>

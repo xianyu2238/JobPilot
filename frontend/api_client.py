@@ -7,10 +7,11 @@ from dotenv import dotenv_values
 import httpx
 
 
-def response_timeout() -> float:
+def response_timeout(generation: bool = False) -> float:
     values = dotenv_values(Path(__file__).resolve().parents[1] / ".env")
     try:
-        budget = float(os.environ.get("JOBPILOT_PARSE_BUDGET_SECONDS") or values.get("JOBPILOT_PARSE_BUDGET_SECONDS") or 300)
+        setting = "JOBPILOT_RESUME_GENERATION_TIMEOUT_SECONDS" if generation else "JOBPILOT_PARSE_BUDGET_SECONDS"
+        budget = float(os.environ.get(setting) or values.get(setting) or (180 if generation else 300))
         return min(600, max(1, budget)) + 30
     except (TypeError, ValueError):
         return 330
@@ -25,7 +26,7 @@ class APIError(Exception):
 def request(base: str, method: str, path: str, **kwargs):
     try:
         # Do not send localhost requests through an operating-system proxy.
-        with httpx.Client(timeout=httpx.Timeout(response_timeout(), connect=5), trust_env=False) as client:
+        with httpx.Client(timeout=httpx.Timeout(response_timeout(path.endswith("/generate")), connect=5), trust_env=False) as client:
             response = client.request(method, base.rstrip("/") + path, **kwargs)
     except httpx.RequestError:
         raise APIError("无法连接后端或请求超时。请确认后端已启动；解析可能仍在处理，请勿连续重复提交。") from None
@@ -39,5 +40,5 @@ def request(base: str, method: str, path: str, **kwargs):
         raise APIError(message, code, response.headers.get("X-Request-ID", ""))
     if response.status_code == 204:
         return None
-    binary = response.headers.get("content-type", "").startswith(("image/", "application/pdf", "application/zip"))
+    binary = response.headers.get("content-type", "").startswith("image/")
     return response.content if binary else response.json()

@@ -8,7 +8,7 @@ from uuid import uuid4
 
 from app.core.errors import AppError
 from app.schemas.business import ResumeResponse
-from app.schemas.export import ExportArtifact
+from app.schemas.resume_generation import GeneratedResume
 
 
 @dataclass
@@ -17,7 +17,7 @@ class ResumeRecord:
     previews: list[bytes]
     fingerprint: str = ""
     document_warnings: list[str] = field(default_factory=list)
-    export: ExportArtifact | None = None
+    generation: GeneratedResume | None = None
 
 
 class MemoryRepository:
@@ -67,16 +67,16 @@ class MemoryRepository:
             response.revision = expected_revision + 1
             response.confirmed = False
             record.response = response
-            record.export = None
+            record.generation = None
             self._items[key] = (self._items[key][0], deepcopy(record))
             return deepcopy(response)
 
-    def save_export(self, key: str, artifact: ExportArtifact) -> None:
+    def save_generation(self, key: str, generation: GeneratedResume) -> None:
         with self._lock:
             record = self.get(key, "resume")
-            if record.response.revision != artifact.revision:
-                raise AppError(409, "RESUME_VERSION_CONFLICT", "简历在导出期间已更新，请重新导出当前版本。")
-            record.export = artifact
+            if record.response.revision != generation.revision:
+                raise AppError(409, "RESUME_VERSION_CONFLICT", "简历在生成期间已更新，请使用当前版本重新制作。")
+            record.generation = generation
             self._items[key] = (self._items[key][0], record)
 
     def confirm(self, key: str, confirmed: bool, expected_revision: int | None = None) -> ResumeResponse:

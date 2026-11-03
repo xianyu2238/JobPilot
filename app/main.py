@@ -18,7 +18,7 @@ from app.core.llm import ModelClient
 from app.core.logging import configure_logging
 from app.repositories.memory import MemoryRepository
 from app.services.ocr_service import LocalOCR
-from app.services.latex_service import LatexExporter
+from app.services.resume_generation_service import ResumeGenerationService
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -33,7 +33,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.state.store = MemoryRepository(settings.store_capacity, settings.store_ttl_seconds)
     application.state.model = ModelClient(settings)
     application.state.ocr = LocalOCR(settings)
-    application.state.exporter = LatexExporter(settings, application.state.store)
+    application.state.resume_generator = ResumeGenerationService(settings, application.state.store)
 
     def error(request: Request, status: int, code: str, message: str):
         return JSONResponse(status_code=status, content={

@@ -9,11 +9,11 @@ import frontend.api_client as api
 
 
 def mark_dirty():
+    st.session_state.pop("generated_resume", None)
     st.session_state.editor_dirty = True
     st.session_state.confirmed = False
     st.session_state.result = None
     st.session_state.confirm_checkbox = False
-    st.session_state.pop("resume_export", None)
 
 
 def editable_payload(parsed):

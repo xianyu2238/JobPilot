@@ -1,9 +1,0 @@
-<% if skills %>
-\cvsection[0.65]{个人技能}
-<% for item in skills %>
-\cvitem{\textbf{<< item.name >>}<% if item.lines %>：<< item.lines[0] >><% endif %>}
-<% for line in item.lines[1:] %>
-\cvitem{<< line >>}
-<% endfor %>
-<% endfor %>
-<% endif %>

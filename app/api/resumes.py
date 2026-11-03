@@ -9,7 +9,8 @@ from fastapi.responses import Response
 from app.core.errors import AppError
 from app.schemas.business import ConfirmInput, ResumeResponse, ResumeUpdateInput, StructureInput
 from app.services.resume_service import ResumeService
-from app.schemas.export import ExportRequest, ExportResponse
+from app.schemas.resume_generation import ResumeGenerationInput, ResumeGenerationResponse
+from app.services.resume_html import PREVIEW_CSP
 
 router = APIRouter(prefix="/api/resumes", tags=["resumes"])
 
@@ -65,30 +66,15 @@ def delete(resume_id: str, request: Request) -> Response:
     return Response(status_code=204)
 
 
-@router.post("/{resume_id}/export", response_model=ExportResponse)
-def export_pdf(resume_id: str, body: ExportRequest, request: Request) -> ExportResponse:
-    return request.app.state.exporter.create(resume_id, body)
+@router.post("/{resume_id}/generate", response_model=ResumeGenerationResponse)
+def generate(resume_id: str, body: ResumeGenerationInput, request: Request) -> ResumeGenerationResponse:
+    return request.app.state.resume_generator.generate(resume_id, body)
 
 
-@router.post("/{resume_id}/export/source")
-def export_source(resume_id: str, body: ExportRequest, request: Request) -> Response:
-    content = request.app.state.exporter.source(resume_id, body)
-    return Response(content, media_type="application/zip", headers={
-        "Content-Disposition": f'attachment; filename="jobpilot-resume-r{body.expected_revision}-source.zip"'
-    })
-
-
-@router.get("/{resume_id}/exports/{export_id}/pdf")
-def download_pdf(resume_id: str, export_id: str, request: Request) -> Response:
-    artifact = request.app.state.exporter.download(resume_id, export_id)
-    return Response(artifact.pdf, media_type="application/pdf", headers={
-        "Content-Disposition": f'attachment; filename="jobpilot-resume-r{artifact.revision}.pdf"'
-    })
-
-
-@router.get("/{resume_id}/exports/{export_id}/source")
-def download_source(resume_id: str, export_id: str, request: Request) -> Response:
-    artifact = request.app.state.exporter.download(resume_id, export_id)
-    return Response(artifact.source_zip, media_type="application/zip", headers={
-        "Content-Disposition": f'attachment; filename="jobpilot-resume-r{artifact.revision}-source.zip"'
+@router.get("/{resume_id}/generations/{generation_id}/preview")
+def generated_preview(resume_id: str, generation_id: str, request: Request) -> Response:
+    document = request.app.state.resume_generator.preview(resume_id, generation_id)
+    return Response(document, media_type="text/html", headers={
+        "Content-Security-Policy": PREVIEW_CSP, "X-Content-Type-Options": "nosniff",
+        "Referrer-Policy": "no-referrer", "X-Frame-Options": "DENY",
     })
