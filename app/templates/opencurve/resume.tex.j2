@@ -1,0 +1,24 @@
+% JobPilot adaptation of OpenCurve Resume; upstream attribution: UPSTREAM.md / LICENSE.
+% Compile with XeLaTeX, LuaLaTeX, or Tectonic.
+\documentclass[a4paper,skipsamekey,10pt,english]{curve}
+\usepackage{open-curve}
+\usepackage{tcolorbox}
+\tcbuselibrary{skins}
+\input{jobpilot-layout}
+\linespread{<< line_spacing >>}\selectfont
+\begin{document}
+{\LARGE\sffamily\bfseries << personal.name >>}\par\vspace{4pt}
+<% if personal.contacts %>
+{\small << personal.contacts >>}\par\vspace{2pt}
+<% endif %>
+<% if personal.job_intention %>
+{\sffamily\bfseries 求职意向：<< personal.job_intention >>}\par
+<% endif %>
+<% for line in personal.other_lines %>
+{\small << line >>}\par
+<% endfor %>
+\input{sections/education}
+\input{sections/experience}
+\input{sections/projects}
+\input{sections/skills}
+\end{document}

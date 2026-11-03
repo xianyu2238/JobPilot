@@ -1,0 +1,9 @@
+<% if experiences %>
+\cvsection[0.65]{实习经历}
+<% for item in experiences %>
+\jobpilotexperience{<< item.title >>}
+<% for line in item.lines %>
+\cvitem{<< line >>}
+<% endfor %>
+<% endfor %>
+<% endif %>

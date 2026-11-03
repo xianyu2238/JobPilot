@@ -25,3 +25,13 @@ def test_invalid_log_level_is_rejected(monkeypatch) -> None:
     monkeypatch.setenv("JOBPILOT_LOG_LEVEL", "INVALID")
     with pytest.raises(ValidationError):
         Settings(_env_file=None)
+
+
+def test_aihubmix_key_alias_and_precedence(monkeypatch) -> None:
+    monkeypatch.delenv("JOBPILOT_LLM_API_KEY", raising=False)
+    monkeypatch.setenv("AIHUBMIX_API_KEY", "test-alias")
+    assert Settings(_env_file=None).llm_api_key.get_secret_value() == "test-alias"
+    monkeypatch.setenv("JOBPILOT_LLM_API_KEY", "test-primary")
+    settings = Settings(_env_file=None)
+    assert settings.llm_api_key.get_secret_value() == "test-primary"
+    assert "test-primary" not in repr(settings)

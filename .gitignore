@@ -8,6 +8,9 @@ htmlcov/
 *.egg-info/
 build/
 dist/
+.tools/
+tmp/
+output/
 
 # Local configuration and personal data
 .env
@@ -16,6 +19,9 @@ dist/
 uploads/
 data/
 *.pdf
+*.png
+*.[jJ][pP][gG]
+*.[jJ][pP][eE][gG]
 *.log
 
 # Editors and operating systems

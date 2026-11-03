@@ -1,1 +1,1 @@
-"""Reserved for PDF extraction, resume parsing, JD parsing, and matching."""
+"""Document extraction, structured resume parsing and direct JD analysis, and practical advice."""

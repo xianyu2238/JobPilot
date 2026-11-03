@@ -2,7 +2,7 @@
 
 轻量级 AI 求职助手，面向 Python 后端与 AI Agent 实习作品开发。
 
-当前完成阶段 0：FastAPI 工程骨架、配置加载、控制台日志、健康检查与基础测试。简历解析、JD 匹配、Agent、数据库和页面尚未实现。MVP 业务流程与接口草案见 [MVP 设计](docs/MVP设计.md)，阶段任务见 [开发进度计划](项目开发进度计划/阶段0.md)。
+已实现阶段 1 的基础代码：PDF/PNG/JPG/JPEG 本地识别、五类简历信息整理与编辑保存、用户粘贴 JD 后直接分析、简历修改与学习建议，以及带侧边栏的 Streamlit 页面。真实模型和图片识别效果需配置后验收，Agent 与数据库尚未接入。启动、模型配置及新增文件说明见 [阶段 1 使用说明](docs/阶段1使用说明.md)，功能要求见 [阶段 1 计划](项目开发进度计划/阶段1.md)。
 
 ## 本地启动（Windows PowerShell）
 
@@ -20,6 +20,16 @@ Copy-Item .env.example .env
 ```
 
 无需激活虚拟环境，也无需修改 PowerShell 执行策略。阶段 0 不需要数据库或 LLM API Key。安装依赖需要访问包源。
+
+以上命令启动后端。阶段 1 还需在 `.env` 配置模型，并在另一个终端启动页面：
+
+```powershell
+.\.venv\Scripts\python.exe -m streamlit run frontend/streamlit_app.py --server.address 127.0.0.1
+```
+
+打开 http://127.0.0.1:8501 。图片和扫描型 PDF 默认使用本地 OCR，无需视觉模型。点击解析后，模型自动将文字填入五类可编辑表单；也可手动填写。保存并确认后，建议分析使用修改后的内容。远程视觉识别仅作为手动备用。
+
+保存修改后，可在左侧“导出简历”使用 OpenCurve 模板生成 PDF，或下载 LaTeX 源文件。首次需要准备本地编译器与依赖，操作和代码位置见 [PDF 导出说明](docs/PDF导出说明.md)。
 
 本次机器默认的清华镜像下载返回 403，改用官方 PyPI 后安装成功。如遇同样问题，可仅对本次安装指定包源：
 
@@ -40,22 +50,27 @@ Copy-Item .env.example .env
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-测试覆盖应用启动、健康检查、文档与 OpenAPI 响应、`.env` 读取、环境变量覆盖和非法日志级别。测试不调用真实模型或数据库。
+测试覆盖应用启动、配置、识别与结构化、编辑保存、建议分析、LaTeX 导出接口与页面交互。自动测试使用模型和编译器替身，不调用真实模型或数据库；真实 PDF 编译通过 `scripts/warm_latex.py` 单独验收。
 
-2026-11-03 验证结果：Python 3.14.4 下 3 项测试通过；实际启动 Uvicorn 后，`/health`、`/docs`、`/openapi.json` 均返回 HTTP 200；`pip check` 未发现依赖冲突。测试依赖 Starlette 对 HTTPX TestClient 发出 1 条弃用提示，目前不影响测试执行。验证用服务已停止，使用时需自行启动。
+2026-11-03 验证结果：Python 3.14.4 下 59 项测试通过；`pip check` 未发现依赖冲突。Starlette 对 HTTPX TestClient 发出 1 条弃用提示，目前不影响测试执行。
 
 ## 目录和文件
 
 | 路径 | 放什么 |
 | --- | --- |
 | `app/main.py` | FastAPI 实例、应用工厂、路由注册 |
-| `app/api/` | HTTP 接口，当前包含 `health.py`；后续添加简历、岗位、对话接口 |
-| `app/core/` | `config.py` 读取并验证配置；`logging.py` 设置应用控制台日志 |
-| `app/schemas/` | Pydantic 数据结构，当前包含健康检查响应；后续添加简历、JD 等输入输出模型 |
-| `app/services/` | 业务逻辑预留目录，后续放 PDF 抽取、简历解析和岗位匹配 |
+| `app/api/` | 健康检查、简历上传/整理/编辑保存/预览/确认、JD 原文分析接口 |
+| `app/core/` | 配置、日志、模型客户端、业务错误与技能别名 |
+| `app/schemas/` | 健康检查、简历、JD 分析输入、原文证据和建议的数据结构 |
+| `app/services/` | PDF/PNG/JPG/JPEG 内容提取、简历结构化、直接对照 JD 给出建议 |
 | `app/agents/` | Agent 预留目录，后续放 State、状态图、工具和提示词 |
 | `app/models/` | 数据库模型预留目录，阶段 3 放 SQLAlchemy 模型 |
-| `tests/` | 健康检查、文档和配置测试 |
+| `tests/` | 健康检查、配置、业务接口、解析、匹配和页面交互测试 |
+| `app/prompts/` | 简历抽取提示词 |
+| `app/repositories/` | 简历临时存储、过期清理及核对状态 |
+| `frontend/` | Streamlit 页面、五类信息编辑器和后端 HTTP 客户端 |
+| `examples/` | 合成简历文本与岗位 JD 样例 |
+| `scripts/` | 将合成文本生成 PDF/PNG 的工具 |
 | `docs/` | MVP 范围、输入输出约定和初始架构说明 |
 | `项目开发进度计划/` | 阶段 0–6 的开发任务和验收标准 |
 | `.venv/` | 本机 Python 虚拟环境与依赖，不提交 Git |
@@ -66,7 +81,7 @@ Copy-Item .env.example .env
 | `pyproject.toml` | pytest 测试目录及导入路径配置 |
 | `.gitignore` | 排除虚拟环境、个人配置、PDF、上传数据、缓存等 |
 
-每个 Python 包的 `__init__.py` 用于标记包并说明用途。三个业务预留目录目前只有此文件，未实现业务代码。测试后出现的 `__pycache__/`、`.pytest_cache/` 属于可重新生成的缓存。
+每个 Python 包的 `__init__.py` 用于标记包并说明用途。`agents/` 和 `models/` 仍为后续阶段预留目录。测试后出现的 `__pycache__/`、`.pytest_cache/` 属于可重新生成的缓存。
 
 ## Git 与发布到 GitHub
 

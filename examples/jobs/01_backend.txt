@@ -1,0 +1,5 @@
+岗位：Python 后端开发实习生
+任职要求：具备 Python 开发经验，熟悉 FastAPI。
+熟悉 MySQL 或 PostgreSQL 至少一种。
+有 Redis 使用经验优先。
+每周至少到岗四天，持续三个月。
